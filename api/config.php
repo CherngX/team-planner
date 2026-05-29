@@ -1,4 +1,8 @@
 <?php
+// Load local credentials (not committed to git)
+$_env = __DIR__ . '/.env.php';
+if (file_exists($_env)) require $_env;
+
 define('DB_HOST', getenv('DB_HOST') ?: '127.0.0.1');
 define('DB_PORT', getenv('DB_PORT') ?: '3306');
 define('DB_NAME', getenv('DB_NAME') ?: 'team_planner');

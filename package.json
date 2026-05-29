@@ -1,11 +1,12 @@
 {
-  "name": "planner-src",
+  "name": "team-planner",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host 0.0.0.0 --port 5173",
     "build": "vite build",
+    "deploy": "vite build && cp -r dist/* /var/www/html/planner/ && echo 'Deployed.'",
     "lint": "eslint .",
     "preview": "vite preview"
   },

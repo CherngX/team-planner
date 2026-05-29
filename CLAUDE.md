@@ -10,19 +10,19 @@ A collaborative team Gantt chart dashboard. All team members open the same URL �
 
 | What | Where |
 |------|-------|
-| React source | `~/planner-src/` |
-| Built output (served by Apache) | `/var/www/html/planner/` |
-| PHP API | `/var/www/html/planner/api/` |
-| DB credentials | `/var/www/html/planner/api/config.php` |
+| Git repo (source of truth) | `~/team-planner/` |
+| PHP API — symlinked, edits are instantly live | `~/team-planner/api/` → `/var/www/html/planner/api` |
+| Local DB credentials (gitignored) | `~/team-planner/api/.env.php` |
+| Built frontend (copy after `npm run deploy`) | `/var/www/html/planner/` |
 
 ## Commands
 
 ```bash
-# Dev server (hot reload, proxies /planner/api → Apache:8080)
-cd ~/planner-src && npm run dev -- --host 0.0.0.0 --port 5173
+# Dev server (hot reload on :5173, proxies /planner/api → Apache:8080)
+cd ~/team-planner && npm run dev
 
-# Production build + deploy
-cd ~/planner-src && npm run build && cp -r dist/* /var/www/html/planner/
+# Build + deploy frontend to Apache web root
+cd ~/team-planner && npm run deploy
 
 # Test API directly
 curl http://localhost:8080/planner/api/rows.php
@@ -34,17 +34,25 @@ curl "http://localhost:8080/planner/api/sync.php?since=0"
 
 ```
 Browser → Nginx (443) → Apache (8080) → /var/www/html/planner/
-                                         ├── index.html  (React SPA)
-                                         └── api/        (PHP endpoints)
-                                               ├── config.php  (PDO helper, CORS)
-                                               ├── rows.php    (GET/POST/PUT/DELETE)
-                                               ├── tasks.php   (GET/POST/PUT/DELETE)
-                                               └── sync.php    (GET ?since=unix_ts)
+                                         ├── index.html        (built React SPA)
+                                         ├── assets/           (built JS/CSS)
+                                         ├── .htaccess         (SPA rewrite rule)
+                                         └── api/ ──symlink──► ~/team-planner/api/
+                                                                  ├── .env.php  (gitignored, has DB pass)
+                                                                  ├── config.php
+                                                                  ├── rows.php
+                                                                  ├── tasks.php
+                                                                  └── sync.php
 ```
+
+The `api/` symlink means PHP edits in the repo are live immediately — no copy step needed.
+The frontend requires `npm run deploy` after changes (Vite build step).
+
+ACLs grant `www-data` traversal rights to `/root` and `/root/team-planner` so Apache can follow the symlink.
 
 Dev: Vite dev server on :5173 proxies `/planner/api/*` to `localhost:8080` so HMR and the PHP API work together.
 
-## Frontend Source Layout (`~/planner-src/src/`)
+## Frontend Source Layout (`~/team-planner/src/`)
 
 - `App.jsx` — root; renders `<GanttChart>` after data loads
 - `hooks/useGanttData.js` — all server state: fetches rows+tasks on mount, polls `sync.php` every 5 s, exposes add/update/delete callbacks

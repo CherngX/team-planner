@@ -14,37 +14,36 @@ A real-time collaborative team planning dashboard. All team members open the sam
 
 ## Stack
 
-- **Frontend:** React 19 + Vite, no external Gantt library — built with CSS Grid and mouse event handlers
-- **Backend:** PHP 8.1 REST API (PDO + MariaDB)
+- **Frontend:** React 19 + Vite — Gantt grid built with CSS Grid and mouse event handlers (no external Gantt library)
+- **Backend:** PHP 8.1 REST API using PDO
 - **Database:** MariaDB / MySQL
 
 ## Project Structure
 
 ```
-src/                        # React source
+src/
   components/
-    GanttChart.jsx          # Top-level layout, toolbar, view state
-    GanttHeader.jsx         # Sticky date header (month + day rows)
-    GanttRow.jsx            # One grid row with task bars
-    TaskBar.jsx             # Draggable/resizable task bar
-    Sidebar.jsx             # Left panel — rows management
-    TaskPopup.jsx           # Floating task editor
+    GanttChart.jsx     # Top-level layout: toolbar, view toggle, sidebar + grid
+    GanttHeader.jsx    # Sticky date header (month row + day row)
+    GanttRow.jsx       # One grid row with background day cells + task bars
+    TaskBar.jsx        # Draggable/resizable task bar
+    Sidebar.jsx        # Left panel: add/rename/delete/reorder rows
+    TaskPopup.jsx      # Floating task editor (title, dates, color, type)
   hooks/
-    useGanttData.js         # Server state, polling, CRUD callbacks
+    useGanttData.js    # All server state: initial load + 5s polling + CRUD
   utils/
-    api.js                  # fetch wrappers for all PHP endpoints
-    dates.js                # Date arithmetic helpers
-api/                        # PHP REST API (deploy to web server)
-  config.php                # DB connection (update credentials here)
-  rows.php                  # GET/POST/PUT/DELETE rows
-  tasks.php                 # GET/POST/PUT/DELETE tasks
-  tasks.php                 # GET ?since=unix_ts  (real-time sync)
-  sync.php
+    api.js             # fetch wrappers for all PHP endpoints
+    dates.js           # Date arithmetic (addDays, diffDays, toISO, parseDate…)
+api/
+  config.php           # PDO singleton, CORS helper, credential loading
+  rows.php             # GET / POST / PUT / DELETE
+  tasks.php            # GET / POST / PUT / DELETE  (?from=&to= for date range)
+  sync.php             # GET ?since=unix_ts → changed tasks + full rows list
 ```
 
 ## Setup
 
-### Database
+### 1. Database
 
 ```sql
 CREATE DATABASE IF NOT EXISTS team_planner CHARACTER SET utf8mb4;
@@ -71,11 +70,22 @@ CREATE TABLE tasks (
 );
 ```
 
-### API
+> **Note:** `rows` is a reserved word in MariaDB — always quote it as `` `rows` `` in SQL.
 
-1. Copy `api/` to your web server (e.g. `/var/www/html/planner/api/`)
-2. Edit `api/config.php` with your DB credentials
-3. Add `.htaccess` to rewrite non-API requests to `index.html`:
+### 2. API credentials
+
+Copy `api/` to your web server. Create `api/.env.php` (not committed to git) with your DB password:
+
+```php
+<?php
+putenv('DB_PASS=your_password_here');
+```
+
+`config.php` loads this file automatically if it exists, then falls back to `DB_*` environment variables.
+
+### 3. Apache / .htaccess
+
+Place this `.htaccess` in your web root (e.g. `/var/www/html/planner/`):
 
 ```apache
 RewriteEngine On
@@ -84,17 +94,18 @@ RewriteCond %{REQUEST_FILENAME} !-f
 RewriteRule ^ /planner/index.html [L]
 ```
 
-### Frontend
+Apache must have `AllowOverride All` and `FollowSymLinks` enabled for the web root directory.
+
+### 4. Frontend
 
 ```bash
 npm install
 
-# Development (proxies /planner/api to localhost:8080)
-npm run dev -- --host 0.0.0.0 --port 5173
+# Dev server with hot reload (proxies /planner/api → localhost:8080)
+npm run dev
 
-# Production build
-npm run build
-# Copy dist/* to your web server's /planner/ directory
+# Build + deploy to /var/www/html/planner/ in one step
+npm run deploy
 ```
 
-Update `vite.config.js` `base` and the proxy target to match your server setup.
+`vite.config.js` sets `base: '/planner/'` and proxies API calls to `localhost:8080` during development.
